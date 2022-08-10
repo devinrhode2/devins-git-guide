@@ -1,0 +1,181 @@
+[pager]
+  diff = delta
+  # diff = cat
+  log = cat
+  # reflog = delta
+  reflog = cat
+  show = cat
+
+[interactive]
+  diffFilter = delta --color-only
+
+[delta]
+  features = side-by-side line-numbers decorations
+  whitespace-error-style = 22 reverse
+  navigate = true  # use n and N to move between diff sections
+
+[delta "decorations"]
+  commit-decoration-style = bold yellow box ul
+  file-style = bold yellow ul
+  file-decoration-style = none
+
+[core]
+  editor = code --wait
+	excludesfile = /Users/devinrhode2/.gitignore_global
+  attributesfile = ~/.gitattributes_global
+  # TOGGLE delta!!
+  # pager = delta
+  # pager = cat hi
+  ignorecase = false
+  fileMode = false
+  eol = lf
+	autocrlf = false
+[user]
+	email = devinrhode2@gmail.com
+	name = devinrhode2
+
+[alias]
+  # git submit-cherry <sha> new-branch-name-for-pr
+  submit-cherry = "!runit() { CURRENT_BRANCH=`git branch --show-current`; echo checkout master && git checkout master && git reset --hard origin/master && git pull && git checkout -b $2 && git cherry-pick $1 echo force publish && git publish-branch --force-with-lease --force-if-includes && echo back to original branch && git checkout $CURRENT_BRANCH; }; runit"
+  # git breakout-small-pr <sha> new-branch-name-for-pr
+  # Could also call this "breakup-large-pr" or "segment large pr"
+  # Maybe some other pr stacking tool is better
+  breakout-small-pr = "!runit() { CURRENT_BRANCH=`git branch --show-current`; \
+                        echo checkout $1 && \
+                        git checkout $1 && \
+                        echo delete $2 locally && \
+                        git branch -D $2 || true && \
+                        echo create fresh $2 && \
+                        git checkout -b $2 && \
+                        echo force publish && \
+                        git publish-branch --force-with-lease --force-if-includes && \
+                        echo back to original branch && \
+                        git checkout $CURRENT_BRANCH; }; runit"
+  lb = !git reflog show --pretty=format:'%gs ~ %gd' --date=relative | grep 'checkout:' | grep -oE '[^ ]+ ~ .*' | awk -F~ '!seen[$1]++' | head -n 30 | awk -F' ~ HEAD@{' '{printf(\"  \\033[33m%s: \\033[37m %s\\033[0m\\n\", substr($2, 1, length($2)-1), $1)}'
+  publish-branch = !git push -u origin $(git rev-parse --abbrev-ref HEAD)
+  nuke = !sh -c 'git branch -D $1 && git push --delete origin $1 --no-verify' -
+  rename = "!moveit() { git push origin --delete `git branch --show-current` || true; git branch -m $1; git push --set-upstream origin $1; }; moveit"
+  s = status
+  br = branch --no-merge develop # && echo "\nworktrees:" && git worktree list # show only branches not merged into master
+  graph = log --graph --date-order -C -M --pretty=format:\"%C(Yellow)%h%Creset %C(Red)%ad%Creset %C(Cyan)[%an]%Creset %Cgreen%d%Creset %s\" --all --date=short
+  recent = !git reflog show --pretty=format:'%gs ~ %gd' --date=relative | grep 'checkout:' | grep -oE '[^ ]+ ~ .*' | awk -F~ '!seen[$1]++' | head -n 10 | awk -F' ~ HEAD@{' '{printf(\"  \\033[33m%s: \\033[37m %s\\033[0m\\n\", substr($2, 1, length($2)-1), $1)}'
+  recent2 = for-each-ref --sort='-authordate:iso8601' --format='%(authordate:relative)%09%(refname:short)' refs/heads
+	pushf = push --force-with-lease --force-if-includes
+  # add-archive = "!runit() { REFS_BRANCH=`git branch -a --contains $1 | xargs`; git update-ref refs/archive/$(date '+%Y-%m-%d')/$(git config user.name)/$REFS_BRANCH/$(date '+%s'); echo attempting to delete remote branch; git push --delete origin $REFS_BRANCH --no-verify; echo attempting to backup archives; git push origin refs/archive/*:refs/archive/*; }; runit"
+  add-archive = "!runit() { REFS_BRANCH=`git branch -a --contains $1 | xargs` && \
+                 NEW_REF=`echo refs/archive/$(date '+%Y-%m-%d')/$(git config user.name)/$REFS_BRANCH-$(date '+%s')` && \
+                 git update-ref $NEW_REF $1 && \
+                 echo consider deleting $REFS_BRANCH && \
+                 echo attempting to backup archives && \
+                 git push origin refs/archive/*:refs/archive/* && \
+                 echo Here is your remote commit ref url && \
+                 echo https://github.com/TextUsBiz/tesseract/commit/$1; }; runit"
+
+  hold = "!sh -c 'git update-ref refs/hold/$1 refs/heads/$1 && \
+          git branch -D $1' -"
+  # # git for-each-ref refs/hold/
+
+  backup-archive = push origin refs/archive/*:refs/archive/*
+  backup-archives = push origin refs/archive/*:refs/archive/*
+  list-archive = for-each-ref --sort=-authordate --format='%(refname) %(objectname:short) %(contents:subject)' refs/archive/
+  # rem = !git add-archive
+  # lsrem = !git list-archive
+
+[merge]
+  tool = code
+  conflictstyle = diff3
+[diff]
+  colorMoved = default
+  renameLimit = 5000
+  submodule = log
+  tool = vscode
+  algorithm = minimal
+[difftool "default-difftool"]
+  cmd = code --wait --diff $LOCAL $REMOTE
+# [log]
+#   date = human
+
+[difftool "vscode"]
+  cmd = code --wait --diff \"$LOCAL\" \"$REMOTE\"
+[filter "lfs"]
+  process = git-lfs filter-process
+  required = true
+  clean = git-lfs clean -- %f
+  smudge = git-lfs smudge -- %f
+[uploadpack]
+  allowReachableSHA1InWant = true
+[submodule]
+  fetchJobs = 61
+# [blame]
+#   ignoreRevsFile = .git-blame-ignore-revs
+
+[push]
+  recurseSubmodules = check
+  # recurseSubmodules = on-demand # this setting makes git push fail in superproject like so:
+  # git push                                                                                                                                                      git:dev*
+  # husky > pre-push (node v12.10.0)
+  # husky pre-push hook (has git hook .sample)
+  # fatal: src refspec 'refs/heads/dev' must name a ref
+  # fatal: process for submodule 'src/app/q360-comps/animated-meter' failed
+
+# [difftool "sourcetree"]
+#   cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+#   path =
+# [mergetool "sourcetree"]
+#   cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+#   trustExitCode = true
+[pull]
+  rebase = true
+[fetch]
+  showForcedUpdates = true
+[rebase]
+  stat = true
+  missingCommitsCheck = error
+  rescheduleFailedExec = true
+	autoSquash = true
+  # instructionFormat = medium
+  autoStash = true
+[init]
+  defaultBranch = main
+[gc]
+  autodetach = false
+  pruneExpire = never
+  reflogExpire = never
+	auto = 0
+
+[sendemail]
+  smtpserver = smtp.gmail.com
+  smtpuser = devinrhode2@gmail.com
+  smtpencryption = tls
+  smtpserverport = 587
+  smtpPass = upbkaorhpyhoyzek
+
+[url "git@github.com:"]
+	insteadOf = https://github.com/
+[url "git@gist.github.com:"]
+	insteadOf = https://gist.github.com/
+[advice]
+	skippedCherryPicks = true
+
+[merge "npm-merge-driver"]
+  name = automatically merge package-lock.json
+  driver = npx @gemini-testing/npm-merge-driver merge %A %O %B %P
+
+# Disabled via ~/.gitattributes_global
+[merge "yarn-merge-driver"]
+  name = automatically merge yarn.lock
+  driver = npx @gemini-testing/npm-merge-driver merge %A %O %B %P --command yarn install
+[rerere]
+	enabled = true
+[remote "origin"]
+	tagopt = --tags
+  # https://stackoverflow.com/a/72875916/565877
+  # fetch = +refs/heads/*:refs/remotes/origin/*
+  fetch = +refs/archive/*:refs/archive/*
+  push = +refs/archive/*:refs/archive/*
+[difftool "sourcetree"]
+	cmd = opendiff \"$LOCAL\" \"$REMOTE\"
+	path = 
+[mergetool "sourcetree"]
+	cmd = /Applications/Sourcetree.app/Contents/Resources/opendiff-w.sh \"$LOCAL\" \"$REMOTE\" -ancestor \"$BASE\" -merge \"$MERGED\"
+	trustExitCode = true
