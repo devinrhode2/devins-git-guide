@@ -41,7 +41,7 @@ Ok, how to actually rebase:
 git fetch origin master
 git rebase\
   --interactive\
-  --onto origin/master 8c0065007 # old master commit, you'll discard everything older than this
+  --onto origin/master 8c0065007 # old master commit, you'll discard this commit, and everything older than it
   --reapply-cherry-picks --reschedule-failed-exec\
   --empty=drop
 ```
